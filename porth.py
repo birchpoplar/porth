@@ -134,10 +134,11 @@ def load_program_from_file(file_path):
         return [parse_word_as_op(word) for word in f.read().split()]
     
 def usage():
-    print("Usage: %s <SUBCOMMAND> [ARGS]", program)
+    print("Usage: %s <SUBCOMMAND> [ARGS]" % program_name)
     print("SUBCOMMANDS:")
     print("   sim  <file>    Simulate the program")
     print("   com  <file>    Compile the program")
+    print("   help           Print this help to stdout and exit with 0 code")
 
 def call_cmd(cmd):
     print(cmd)
@@ -174,6 +175,9 @@ if __name__ == '__main__':
         compile_program(program, "output.asm")
         call_cmd(["nasm", "-felf64", "output.asm"])
         call_cmd(["ld", "-o", "output", "output.o"])
+    elif subcommand == "help":
+        usage()
+        exit(1)
     else:
         usage()
         print("ERROR: unknown subcommand %s" % (subcommand))
