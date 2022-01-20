@@ -2,6 +2,8 @@
 
 import sys
 import subprocess
+from shlex import quote
+from os import path
 
 iota_counter = 0
 def iota(reset=False):
@@ -164,7 +166,7 @@ def lex_line(line):
         yield(col, line[col:col_end])
         col = find_col(line, col_end, lambda x: not x.isspace())
 
-def lex_file(file_path):
+def lex_file(file_path): 
     with open(file_path, "r") as f:
         return [(file_path, row, col, token)
                 for (row, line) in enumerate(f.readlines())
@@ -173,8 +175,9 @@ def lex_file(file_path):
 def load_program_from_file(file_path):
     return [parse_token_as_op(token) for token in lex_file(file_path)]
 
-# def cmd_echoed(cmd):
-#     print("[CMD] %s" % " ".join(map(shlex.quote, cmd)))
+def cmd_echoed(cmd):
+    print("[CMD] %s" % " ".join(map(quote, cmd)))
+    subprocess.call(cmd)
     
 def usage():
     print("Usage: %s <SUBCOMMAND> [ARGS]" % program_name)
@@ -182,44 +185,42 @@ def usage():
     print("   sim  <file>    Simulate the program")
     print("   com  <file>    Compile the program")
     print("   help           Print this help to stdout and exit with 0 code")
-
-def call_cmd(cmd):
-    print(cmd)
-    subprocess.call(cmd)
-
-def uncons(xs):
-    return (xs[0], xs[1:])
         
 if __name__ == '__main__':
     argv = sys.argv
     assert len(argv) >= 1
-    (program_name, argv) = uncons(argv)
+    compiler_name, *argv = argv
     if len(argv) < 1:
-         usage(program_name)
+         usage(compiler_name)
          print("ERROR: no subcommand is provided")
          exit(1)
-    (subcommand, argv) = uncons(argv)
-            
+    subcommand, *argv = argv
+
     if subcommand == "sim":
         if len(argv) < 1:
-            usage(program_name)
+            usage(compiler_name)
             print("ERROR: no input file is provided for the simulation")
             exit(1)
-        (program_path, argv) = uncons(argv)
+        program_path, *argv = argv
         program = load_program_from_file(program_path);
         simulate_program(program)
     elif subcommand == "com":
         if len(argv) < 1:
-            usage(program_name)
+            usage(compiler_name)
             print("ERROR: no input file is provided for the compilation")
             exit(1)
-        (program_path, argv) = uncons(argv)
+        program_path, *argv = argv
         program = load_program_from_file(program_path);
-        compile_program(program, "output.asm")
-        call_cmd(["nasm", "-felf64", "output.asm"])
-        call_cmd(["ld", "-o", "output", "output.o"])
+        porth_ext = '.porth'
+        basename = path.basename(program_path)
+        if basename.endswith(porth_ext):
+            basename = basename[:-len(porth_ext)]
+        print("[INFO] Generating %s" % (basename + ".asm"))
+        compile_program(program, basename + ".asm")
+        cmd_echoed(["nasm", "-felf64", basename + ".asm"])
+        cmd_echoed(["ld", "-o", basename, basename + ".o"])
     elif subcommand == "help":
-        usage()
+        usage(compiler_name)
         exit(1)
     else:
         usage()
