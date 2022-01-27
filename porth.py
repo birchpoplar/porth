@@ -22,6 +22,7 @@ OP_DUMP = iota()
 OP_IF = iota()
 OP_END = iota()
 OP_ELSE = iota()
+OP_DUP = iota()
 COUNT_OPS = iota()
 
 def push(x):
@@ -48,11 +49,14 @@ def end():
 def elze():
     return (OP_ELSE, )
 
+def dup():
+    return (OP_DUP, )
+
 def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 8, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 9, "Exhaustive handling of operations in simulation"
         op = program[ip]
         if op[0] == OP_PUSH:
             stack.append(op[1])
@@ -83,6 +87,11 @@ def simulate_program(program):
             assert len(op) >= 2, "'else' instruction does not have a reference to the end of its block. Please call cross_referenceblocks() on the program before trying to simulate"
             ip = op[1]
         elif op[0] == OP_END:
+            ip += 1
+        elif op[0] == OP_DUP:
+            a = stack.pop()
+            stack.append(a)
+            stack.append(a)
             ip += 1
         elif op[0] == OP_DUMP:
             a = stack.pop()
@@ -133,7 +142,7 @@ def compile_program(program, out_file_path):
         
         for ip in range(len(program)):
             op = program[ip]
-            assert COUNT_OPS == 8, "Exhaustive handling of operations in simulation"
+            assert COUNT_OPS == 9, "Exhaustive handling of operations in simulation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -175,6 +184,11 @@ def compile_program(program, out_file_path):
                 out.write("addr_%d:\n" % (ip + 1))
             elif op[0] == OP_END:
                 out.write("addr_%d:\n" % ip)
+            elif op[0] == OP_DUP:
+                out.write("    ;; -- dup -- \n")
+                out.write("    pop rax\n")
+                out.write("    push rax\n")
+                out.write("    push rax\n")
             else:
                 assert False, "unreachable";
 
@@ -184,7 +198,7 @@ def compile_program(program, out_file_path):
 
 def parse_token_as_op(token):
      (file_path, row, col, word) = token
-     assert COUNT_OPS == 8, "Exhaustive op handling in parse_token_as_op"
+     assert COUNT_OPS == 9, "Exhaustive op handling in parse_token_as_op"
      if word == '+':
          return plus()
      elif word == '-':
@@ -199,6 +213,8 @@ def parse_token_as_op(token):
          return end()
      elif word == "else":
          return elze()
+     elif word == "dup":
+         return dup()
      else:
          try:
              return push(int(word))
@@ -209,7 +225,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range (len(program)):
         op = program[ip]
-        assert COUNT_OPS == 8, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
+        assert COUNT_OPS == 9, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
@@ -237,6 +253,7 @@ def lex_line(line):
         yield(col, line[col:col_end])
         col = find_col(line, col_end, lambda x: not x.isspace())
 
+# TODO: Lexer does not support any style of comments
 def lex_file(file_path): 
     with open(file_path, "r") as f:
         for (row, line) in enumerate(f.readlines()): 
