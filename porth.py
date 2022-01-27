@@ -23,6 +23,7 @@ OP_IF = iota()
 OP_END = iota()
 OP_ELSE = iota()
 OP_DUP = iota()
+OP_GT = iota()
 COUNT_OPS = iota()
 
 def push(x):
@@ -51,6 +52,9 @@ def elze():
 
 def dup():
     return (OP_DUP, )
+
+def gt():
+    return (OP_GT, )
 
 def simulate_program(program):
     stack = []
@@ -142,7 +146,7 @@ def compile_program(program, out_file_path):
         
         for ip in range(len(program)):
             op = program[ip]
-            assert COUNT_OPS == 9, "Exhaustive handling of operations in simulation"
+            assert COUNT_OPS == 10, "Exhaustive handling of operations in simulation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -185,10 +189,19 @@ def compile_program(program, out_file_path):
             elif op[0] == OP_END:
                 out.write("addr_%d:\n" % ip)
             elif op[0] == OP_DUP:
-                out.write("    ;; -- dup -- \n")
+                out.write("    ;; -- dup --\n")
                 out.write("    pop rax\n")
                 out.write("    push rax\n")
                 out.write("    push rax\n")
+            elif op[0] == OP_GT:
+                out.write("    ;; -- gt --\n")
+                out.write("    mov rcx, 0\n")
+                out.write("    mov rdx, 1\n")
+                out.write("    pop rbx\n")
+                out.write("    pop rax\n")
+                out.write("    cmp rax, rbx\n")
+                out.write("    cmovg rcx, rdx\n")
+                out.write("    push rcx\n")
             else:
                 assert False, "unreachable";
 
@@ -198,7 +211,7 @@ def compile_program(program, out_file_path):
 
 def parse_token_as_op(token):
      (file_path, row, col, word) = token
-     assert COUNT_OPS == 9, "Exhaustive op handling in parse_token_as_op"
+     assert COUNT_OPS == 10, "Exhaustive op handling in parse_token_as_op"
      if word == '+':
          return plus()
      elif word == '-':
@@ -215,6 +228,8 @@ def parse_token_as_op(token):
          return elze()
      elif word == "dup":
          return dup()
+     elif word == ">":
+         return gt()
      else:
          try:
              return push(int(word))
@@ -225,7 +240,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range (len(program)):
         op = program[ip]
-        assert COUNT_OPS == 9, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
+        assert COUNT_OPS == 10, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
