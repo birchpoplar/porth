@@ -60,7 +60,7 @@ def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 9, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 10, "Exhaustive handling of operations in simulation"
         op = program[ip]
         if op[0] == OP_PUSH:
             stack.append(op[1])
@@ -100,6 +100,11 @@ def simulate_program(program):
         elif op[0] == OP_DUMP:
             a = stack.pop()
             print(a)
+            ip += 1
+        elif op[0] == OP_GT:
+            b = stack.pop()
+            a = stack.pop()
+            stack.append(int(a < b))
             ip += 1
         else:
             assert False, "unreachable"
