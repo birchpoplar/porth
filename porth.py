@@ -24,6 +24,8 @@ OP_END = iota()
 OP_ELSE = iota()
 OP_DUP = iota()
 OP_GT = iota()
+OP_WHILE = iota()
+OP_DO = iota()
 COUNT_OPS = iota()
 
 def push(x):
@@ -56,11 +58,17 @@ def dup():
 def gt():
     return (OP_GT, )
 
+def wile():
+    return (OP_WHILE, )
+
+def doo():
+    return (OP_DO, )
+
 def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 10, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 12, "Exhaustive handling of operations in simulation"
         op = program[ip]
         if op[0] == OP_PUSH:
             stack.append(op[1])
@@ -83,15 +91,16 @@ def simulate_program(program):
         elif op[0] == OP_IF:
             a = stack.pop()
             if a == 0:
-                assert len(op) >= 2, "'if' instruction does not have a reference to the end of its block. Please call cross_referenceblocks() on the program before trying to simulate"
+                assert len(op) >= 2, "'if' instruction does not have a reference to the end of its block. Please call cross_referenceblocks() on the program before trying to simulate it"
                 ip = op[1]
             else:
                 ip += 1
         elif op[0] == OP_ELSE:
-            assert len(op) >= 2, "'else' instruction does not have a reference to the end of its block. Please call cross_referenceblocks() on the program before trying to simulate"
+            assert len(op) >= 2, "'else' instruction does not have a reference to the end of its block. Please call cross_referenceblocks() on the program before trying to simulate it"
             ip = op[1]
         elif op[0] == OP_END:
-            ip += 1
+            assert len(op) >= 2, "'end' instruction does not have a reference to the next instruction to jump to. please call cross_referenceblocks() on the program before trying to simulate it"
+            ip = op[1]
         elif op[0] == OP_DUP:
             a = stack.pop()
             stack.append(a)
@@ -106,6 +115,15 @@ def simulate_program(program):
             a = stack.pop()
             stack.append(int(a < b))
             ip += 1
+        elif op[0] == OP_WHILE:
+            ip += 1
+        elif op[0] == OP_DO:
+            a = stack.pop()
+            if a == 0:
+                assert len(op) >= 2, "'end' instruction does not have a reference to the next instruction to jump to. please call cross_referenceblocks() on the program before trying to simulate it"
+                ip = op[1]
+            else:
+                ip += 1
         else:
             assert False, "unreachable"
 
@@ -216,7 +234,7 @@ def compile_program(program, out_file_path):
 
 def parse_token_as_op(token):
      (file_path, row, col, word) = token
-     assert COUNT_OPS == 10, "Exhaustive op handling in parse_token_as_op"
+     assert COUNT_OPS == 12, "Exhaustive op handling in parse_token_as_op"
      if word == '+':
          return plus()
      elif word == '-':
@@ -235,6 +253,10 @@ def parse_token_as_op(token):
          return dup()
      elif word == ">":
          return gt()
+     elif word == "while":
+         return wile()
+     elif word == "do":
+         return doo()
      else:
          try:
              return push(int(word))
@@ -245,7 +267,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range (len(program)):
         op = program[ip]
-        assert COUNT_OPS == 10, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
+        assert COUNT_OPS == 12, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
@@ -257,8 +279,19 @@ def crossreference_blocks(program):
             block_ip = stack.pop()
             if program[block_ip][0] == OP_IF or program[block_ip][0] == OP_ELSE:
                 program[block_ip] = (program[block_ip][0], ip)
+                program[ip] = (OP_END, ip + 1)
+            elif program[block_ip][0] == OP_DO:
+                assert len(program[block_ip]) >= 2
+                program[ip] = (OP_END, program[block_ip][1])
+                program[block_ip] = (OP_DO, ip + 1)
             else:
-                assert False, "`end` can only close if blocks for now."
+                assert False, "`end` can only close `if`, `else` or `do` blocks for now."
+        elif op[0] == OP_WHILE:
+            stack.append(ip)
+        elif op[0] == OP_DO:
+            wile_ip = stack.pop()
+            program[ip] = (OP_DO, wile_ip)
+            stack.append(ip)
     return program
              
 def find_col(line, start, predicate):
