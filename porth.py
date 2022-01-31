@@ -111,8 +111,8 @@ def simulate_program(program):
             print(a)
             ip += 1
         elif op[0] == OP_GT:
-            b = stack.pop()
             a = stack.pop()
+            b = stack.pop()
             stack.append(int(a < b))
             ip += 1
         elif op[0] == OP_WHILE:
